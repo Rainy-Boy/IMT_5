@@ -51,7 +51,8 @@ preprocessing_registry = {
 
 viz_registry = {
     "Bar Chart": {
-        "function": px.bar,
+        "function": lambda df, x, y, **kwargs: px.bar(
+                df.groupby(x, as_index=False)[y].mean(), x=x, y=y, **kwargs),
         "required_params": ["x", "y"],
         "optional_params": {
             "color": {"type": "column", "description": "Color bars by category"},
@@ -100,7 +101,7 @@ viz_registry = {
         "optional_params": {
             "color": {"type": "column", "description": "Group boxes by another category"},
             "notched": {"type": "checkbox", "default": False, "description": "Show confidence interval notches"},
-            "points": {"type": "select", "options": ["all", "outliers", "suspectedoutliers", "False"], "default": "outliers"}
+            "points": {"type": "select", "options": ["all", "outliers", "suspectedoutliers", False], "default": "outliers"}
         },
         "description": "Show distribution statistics across categories",
         "data_requirements": {"y": "numeric"}
@@ -109,7 +110,7 @@ viz_registry = {
         "function": px.pie,
         "required_params": ["names", "values"],
         "optional_params": {
-            "hole": {"type": "slider", "min": 0, "max": 0.8, "default": 0, "description": "Create a donut chart (0 for pie)"},
+            "hole": {"type": "slider", "min": 0.0, "max": 0.8, "default": 0.0, "description": "Create a donut chart (0 for pie)"},
             "pull": {"type": "column", "description": "Pull sectors out from center"}
         },
         "description": "Show proportion of total for categories",
@@ -238,11 +239,28 @@ def main():
                 col_select = st.selectbox(f"Select column for {param}", working_df.columns)
                 viz_params[param] = col_select
             
+            # Optional params
+            optional_config = viz_registry[viz_type].get("optional_params", {})
+            if optional_config:
+                with st.expander("➕ Optional parameters", expanded=False):
+                    for param, config in optional_config.items():
+                        ptype = config.get("type")
+
+                        if ptype == "column":
+                            options = [None] + list(working_df.columns)
+                            viz_params[param] = st.selectbox(f"(Optional) {param}", options, index=0)
+                        elif ptype == "select":
+                            default = config.get("default", config["options"][0])
+                            viz_params[param] = st.selectbox(f"(Optional) {param}", config["options"], index=config["options"].index(default))
+                        elif ptype == "slider":
+                            viz_params[param] = st.slider(f"(Optional) {param}", config["min"], config["max"], config.get("default", config["min"]))
+                        elif ptype == "checkbox":
+                            viz_params[param] = st.checkbox(f"(Optional) {param}", value=config.get("default", False))
             # Create visualization
             if st.button("Generate Visualization"):
                 try:
                     # Filter out None values
-                    filtered_params = {k: v for k, v in viz_params.items() if v != "None"}
+                    filtered_params = {k: v for k, v in viz_params.items() if v is not None and v != "None"}
                     
                     # Create and display visualization
                     viz_function = viz_registry[viz_type]["function"]
