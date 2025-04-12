@@ -36,39 +36,15 @@ preprocessing_registry = {
             "to_type": {"type": "select", "options": ["int", "float", "str", "datetime", "category"], "default": "float"}
         }
     },
-    "create_bins": {
-        "function": lambda df, column, bins, labels=None: df.assign(**{f"{column}_binned": pd.cut(df[column], bins=bins, labels=labels)}),
-        "description": "Create bins from a numeric column",
+    "convert_comma_to_dot": {
+        "function": lambda df, cols: df.assign(**{
+            col: df[col].astype(str).str.replace(',', '.').apply(
+                lambda x: pd.to_numeric(x, errors='coerce')
+            ) for col in cols
+        }),
+        "description": "Convert comma decimal separators to dots (e.g., '76,5' → '76.5')",
         "params": {
-            "column": {"type": "column", "default": ""},
-            "bins": {"type": "slider", "min": 2, "max": 10, "default": 4, "description": "Number of bins"},
-            "labels": {"type": "text", "default": "", "description": "Comma-separated labels (optional)"}
-        }
-    },
-    "normalize": {
-        "function": lambda df, column, method: df.assign(**{f"{column}_norm": (df[column]-df[column].min())/(df[column].max()-df[column].min()) if method == "minmax" else (df[column]-df[column].mean())/df[column].std()}),
-        "description": "Normalize numeric column",
-        "params": {
-            "column": {"type": "column", "default": ""},
-            "method": {"type": "select", "options": ["minmax", "zscore"], "default": "minmax"}
-        }
-    },
-    "pivot_table": {
-        "function": lambda df, index, columns, values, aggfunc: pd.pivot_table(df, index=index, columns=columns, values=values, aggfunc=aggfunc),
-        "description": "Create a pivot table for heatmap visualization",
-        "params": {
-            "index": {"type": "column", "default": ""},
-            "columns": {"type": "column", "default": ""},
-            "values": {"type": "column", "default": ""},
-            "aggfunc": {"type": "select", "options": ["mean", "sum", "count", "median"], "default": "mean"}
-        }
-    },
-    "top_n_categories": {
-        "function": lambda df, column, n: df[df[column].isin(df[column].value_counts().nlargest(n).index)],
-        "description": "Keep only the top N categories",
-        "params": {
-            "column": {"type": "column", "default": ""},
-            "n": {"type": "slider", "min": 1, "max": 20, "default": 5, "description": "Number of categories to keep"}
+            "cols": {"type": "column_multi", "default": [], "description": "Select columns with comma decimals"}
         }
     }
 }
@@ -148,8 +124,11 @@ def main():
     uploaded_file = st.file_uploader("Upload a CSV file", type=["csv"])
 
     # Delimiter selection
+    delimiter_ui_options = [",", ";", "\\t", "|", "' '"]
     delimiter_options = [",", ";", "\t", "|", " "]
-    delimiter = st.selectbox("Select delimiter", delimiter_options, index=1)  # Default to semicolon
+    delimiter = st.selectbox("Select delimiter", delimiter_ui_options, index=1)  # Default to semicolon
+
+    delimiter = delimiter_options[delimiter_ui_options.index(delimiter)]
     
     if uploaded_file is not None:
         # Load data
@@ -161,28 +140,90 @@ def main():
             st.write(f"Rows: {df.shape[0]}, Columns: {df.shape[1]}")
             st.dataframe(df.head())
             
-            # Preprocessing section (simplified)
+            # Simple multiple preprocessing section
             if st.checkbox("Apply preprocessing"):
+                st.subheader("Data Preprocessing")
+                # Initialize preprocessing list in session state
+                if "preprocessing_list" not in st.session_state:
+                    st.session_state.preprocessing_list = []
+
+                # Select preprocessing method
                 preprocessing_type = st.selectbox("Select preprocessing method", list(preprocessing_registry.keys()))
-                
+
                 # Generate UI for preprocessing parameters
                 params = {}
                 for param_name, param_config in preprocessing_registry[preprocessing_type]["params"].items():
                     if param_config["type"] == "column":
-                        params[param_name] = st.selectbox(f"Select column for {param_name}", df.columns)
+                        params[param_name] = st.selectbox(f"Select column for {param_name}", df.columns, key=f"{preprocessing_type}_{param_name}")
                     elif param_config["type"] == "column_multi":
-                        params[param_name] = st.multiselect(f"Select columns", df.columns)
-                
-                # Apply preprocessing when button is clicked
-                if st.button("Apply"):
+                        params[param_name] = st.multiselect(f"Select columns for {param_name}", df.columns, key=f"{preprocessing_type}_{param_name}")
+                    elif param_config["type"] == "select":
+                        options = param_config.get("options", [])
+                        default_idx = options.index(param_config.get("default")) if "default" in param_config else 0
+                        params[param_name] = st.selectbox(f"{param_name}", options, index=default_idx, key=f"{preprocessing_type}_{param_name}")
+                    elif param_config["type"] == "text":
+                        default = param_config.get("default", "")
+                        params[param_name] = st.text_input(f"{param_name}", value=default, key=f"{preprocessing_type}_{param_name}")
+                    elif param_config["type"] == "slider":
+                        min_val = param_config.get("min", 0)
+                        max_val = param_config.get("max", 100)
+                        default = param_config.get("default", (min_val + max_val) // 2)
+                        params[param_name] = st.slider(f"{param_name}", min_value=min_val, max_value=max_val, value=default, key=f"{preprocessing_type}_{param_name}")
+
+                # Add to preprocessing list
+                if st.button("Add to preprocessing list"):
+                    st.session_state.preprocessing_list.append((preprocessing_type, params.copy()))
+                    st.success(f"Added '{preprocessing_type}' to preprocessing list.")
+
+                # Show current preprocessing steps
+                if st.session_state.preprocessing_list:
+                    st.markdown("### Preprocessing Steps:")
+                    # Display and allow removal of specific preprocessing steps
+                    for i, (ptype, pparams) in enumerate(st.session_state.preprocessing_list):
+                        col1, col2 = st.columns([4, 1])
+                        with col1:
+                            st.markdown(f"**{i+1}. {ptype}** — `{pparams}`")
+                        with col2:
+                            if st.button("❌ Remove", key=f"remove_{i}"):
+                                st.session_state.preprocessing_list.pop(i)
+                                st.rerun()
+
+                # Apply all preprocessing steps
+                if st.button("Apply all preprocessing"):
+                    original_df = df.copy()
                     try:
-                        preprocessing_func = preprocessing_registry[preprocessing_type]["function"]
-                        df = preprocessing_func(df, **params)
-                        st.success("Preprocessing applied!")
+                        for step_type, step_params in st.session_state.preprocessing_list:
+                            preprocessing_func = preprocessing_registry[step_type]["function"]
+
+                            # Handle numeric conversion
+                            if "value" in step_params and step_type == "fill_nulls" and step_params["method"] == "value":
+                                try:
+                                    step_params["value"] = float(step_params["value"])
+                                except ValueError:
+                                    pass
+
+                            df = preprocessing_func(df, **step_params)
+
+                        st.session_state.preprocessed_df = df
+                        st.success(f"Applied {len(st.session_state.preprocessing_list)} preprocessing steps!")
+                        st.write("Updated data preview:")
+                        st.dataframe(df.head())
+
                     except Exception as e:
                         st.error(f"Error in preprocessing: {str(e)}")
-            
+                        df = original_df
+
+                # Clear list
+                if st.button("Clear preprocessing list"):
+                    st.session_state.preprocessing_list.clear()
+                    if "preprocessed_df" in st.session_state:
+                        del st.session_state["preprocessed_df"]
+                    st.success("Preprocessing list cleared.")
+                    st.rerun()
+
             # Visualization selection
+            working_df = st.session_state.get("preprocessed_df", df)
+
             st.subheader("Create Visualization")
             viz_type = st.selectbox("Select visualization type", list(viz_registry.keys()))
             
@@ -194,23 +235,8 @@ def main():
             
             # Dynamically create UI for required parameters (X and Y axes)
             for param in viz_registry[viz_type]["required_params"]:
-                col_select = st.selectbox(f"Select column for {param}", df.columns)
+                col_select = st.selectbox(f"Select column for {param}", working_df.columns)
                 viz_params[param] = col_select
-            
-            # Advanced options in expander
-            # with st.expander("Advanced Options"):
-            #     for param_name, param_config in viz_registry[viz_type].get("optional_params", {}).items():
-            #         if param_config["type"] == "column":
-            #             viz_params[param_name] = st.selectbox(
-            #                 param_config["description"], 
-            #                 ["None"] + list(df.columns)
-            #             )
-            #         elif param_config["type"] == "select":
-            #             viz_params[param_name] = st.selectbox(
-            #                 param_config["description"],
-            #                 param_config["options"],
-            #                 index=param_config["options"].index(param_config["default"])
-            #             )
             
             # Create visualization
             if st.button("Generate Visualization"):
@@ -220,7 +246,7 @@ def main():
                     
                     # Create and display visualization
                     viz_function = viz_registry[viz_type]["function"]
-                    fig = viz_function(df, **filtered_params)
+                    fig = viz_function(working_df, **filtered_params)
                     st.plotly_chart(fig)
                 except Exception as e:
                     st.error(f"Error creating visualization: {str(e)}")
