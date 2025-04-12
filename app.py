@@ -15,7 +15,7 @@ preprocessing_registry = {
         "description": "Fill missing values using specified method",
         "params": {
             "cols": {"type": "column_multi", "default": "all"},
-            "method": {"type": "select", "options": ["mean", "median", "mode", "value"], "default": "mean"},
+            "method": {"type": "select", "options": ["mean", "median", "mode", "value"], "default": "value"},
             "value": {"type": "text", "default": "0", "description": "Value to use if 'value' method selected"}
         }
     },
@@ -110,8 +110,7 @@ viz_registry = {
         "function": px.pie,
         "required_params": ["names", "values"],
         "optional_params": {
-            "hole": {"type": "slider", "min": 0.0, "max": 0.8, "default": 0.0, "description": "Create a donut chart (0 for pie)"},
-            "pull": {"type": "column", "description": "Pull sectors out from center"}
+            "hole": {"type": "slider", "min": 0.0, "max": 0.8, "default": 0.0, "description": "Create a donut chart (0 for pie)"}
         },
         "description": "Show proportion of total for categories",
         "data_requirements": {"values": "numeric"}
