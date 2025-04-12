@@ -1,0 +1,31 @@
+date,store,product_category,units_sold,revenue,profit,customer_age,customer_gender,payment_method,promotion_active
+2023-01-05,Store A,Electronics,12,5760.00,1440.00,42,Male,Credit Card,True
+2023-01-07,Store B,Clothing,25,1125.00,450.00,29,Female,Cash,False
+2023-01-10,Store C,Home Goods,8,720.00,180.00,35,Female,Debit Card,False
+2023-01-12,Store A,Electronics,5,2750.00,687.50,52,Male,Credit Card,True
+2023-01-15,Store B,Grocery,45,225.00,67.50,31,Female,Cash,True
+2023-01-18,Store A,Clothing,18,810.00,324.00,25,Male,Debit Card,False
+2023-01-22,Store C,Electronics,3,1800.00,450.00,47,Female,Credit Card,False
+2023-01-25,Store B,Home Goods,15,1275.00,318.75,39,Male,Cash,True
+2023-01-28,Store A,Grocery,60,300.00,90.00,28,Female,Debit Card,True
+2023-02-01,Store C,Clothing,22,990.00,396.00,36,Male,Credit Card,False
+2023-02-05,Store B,Electronics,7,3850.00,962.50,45,Female,Cash,True
+2023-02-08,Store A,Home Goods,12,1020.00,255.00,33,Male,Debit Card,False
+2023-02-12,Store C,Grocery,50,250.00,75.00,27,Female,Credit Card,True
+2023-02-15,Store B,Clothing,30,1350.00,540.00,41,Male,Cash,False
+2023-02-18,Store A,Electronics,9,4950.00,1237.50,38,Female,Debit Card,True
+2023-02-22,Store C,Home Goods,14,1190.00,297.50,44,Male,Credit Card,False
+2023-02-25,Store B,Grocery,55,275.00,82.50,30,Female,Cash,True
+2023-03-01,Store A,Clothing,20,900.00,360.00,37,Male,Debit Card,False
+2023-03-05,Store C,Electronics,6,3300.00,825.00,49,Female,Credit Card,True
+2023-03-08,Store B,Home Goods,18,1530.00,382.50,32,Male,Cash,False
+2023-03-12,Store A,Grocery,48,240.00,72.00,26,Female,Debit Card,True
+2023-03-15,Store C,Clothing,15,675.00,270.00,40,Male,Credit Card,False
+2023-03-18,Store B,Electronics,4,2400.00,600.00,51,Female,Cash,True
+2023-03-22,Store A,Home Goods,10,850.00,212.50,34,Male,Debit Card,False
+2023-03-25,Store C,Grocery,40,200.00,60.00,29,Female,Credit Card,True
+2023-03-28,Store B,Clothing,28,1260.00,504.00,43,Male,Cash,False
+2023-04-01,Store A,Electronics,11,6050.00,1512.50,46,Female,Debit Card,True
+2023-04-05,Store C,Home Goods,16,1360.00,340.00,31,Male,Credit Card,False
+2023-04-08,Store B,Grocery,52,260.00,78.00,28,Female,Cash,True
+2023-04-12,Store A,Clothing,24,1080.00,432.00,38,Male,Debit Card,False
